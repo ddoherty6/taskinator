@@ -5,6 +5,7 @@ var pageContentEl = document.querySelector("#page-content");
 var tasksInProgressEl = document.querySelector("#tasks-in-progress");
 var tasksCompletedEl = document.querySelector("#tasks-completed");
 var tasks = [];
+var notLoadingTasks = false; //used to modify behavior of createTaskEl() when tasks are initially loaded using loadTasks() at page start
 
 var taskFormHandler = function(event) {
     
@@ -23,7 +24,7 @@ var taskFormHandler = function(event) {
 
     var isEdit = formEl.hasAttribute("data-task-id");
 
-    // has data atrribute, so get task id and clal function to complete edit process
+    // has data atrribute, so get task id and call function to complete edit process
 
     if (isEdit) {
         var taskId = formEl.getAttribute("data-task-id");
@@ -56,19 +57,33 @@ var createTaskEl = function(taskDataObj) {
     // add HTML content to div
     taskInfoEl.innerHTML = "<h3 class='task-name'>" + taskDataObj.name + "</h3><span class='task-type'>" + taskDataObj.type + "</span>";
     listItemEl.appendChild(taskInfoEl);
-
-    var taskActionsEl = createTaskActions(taskIdCounter);
+    
+    var taskActionsEl = createTaskActions(taskIdCounter, taskDataObj.status);
     listItemEl.appendChild(taskActionsEl); 
 
-    // add entire list item to list
-    tasksToDoEl.appendChild(listItemEl);
     taskDataObj.id = taskIdCounter;
-    tasks.push(taskDataObj);
-    saveTasks();
+
+    // add entire list item to list
+    if (taskDataObj.status === "to do") {
+        tasksToDoEl.appendChild(listItemEl);
+    }
+    else if (taskDataObj.status === "in progress") {
+        tasksInProgressEl.appendChild(listItemEl);
+    }
+    else if (taskDataObj.status === "completed") {
+        tasksCompletedEl.appendChild(listItemEl);
+    }
+    
+    
+    if (notLoadingTasks) {
+        tasks.push(taskDataObj);
+        saveTasks();
+    }
+
     taskIdCounter++;
 }
 
-var createTaskActions = function(taskId) {
+var createTaskActions = function(taskId, taskStatus) {
     var actionContainerEl = document.createElement("div");
     actionContainerEl.className = "task-actions";
 
@@ -99,9 +114,20 @@ var createTaskActions = function(taskId) {
         var statusOptionEl = document.createElement("option");
         statusOptionEl.textContent = statusChoices[i];
         statusOptionEl.setAttribute("value", statusChoices[i]);
-      
+
+
         // append to select
         statusSelectEl.appendChild(statusOptionEl);
+
+        if (taskStatus === "to do") {
+            statusSelectEl.value = "To Do";
+        }
+        else if (taskStatus === "in progress") {
+            statusSelectEl.value = "In Progress";
+        }
+        else if (taskStatus === "completed") {
+            statusSelectEl.value = "Completed";
+        }
     }
     actionContainerEl.appendChild(statusSelectEl);
 
@@ -172,7 +198,6 @@ var completeEditTask = function(taskName, taskType, taskId) {
 
 var taskButtonHandler = function(event) {
     var targetEl = event.target;
-    console.log(targetEl);
 
     //edit button was clicked
     if (targetEl.matches(".edit-btn")) {
@@ -192,6 +217,8 @@ var taskButtonHandler = function(event) {
 }
 
 var taskStatusChangeHandler = function(event) {
+
+    //debugger;
 
     //get the task's item id
     var taskId = event.target.getAttribute("data-task-id");
@@ -217,14 +244,37 @@ var taskStatusChangeHandler = function(event) {
             tasks[i].status = statusValue;
         }
     }
-
+    
     saveTasks();
 };
 
 var saveTasks = function() {
     localStorage.setItem("tasks", JSON.stringify(tasks));
-
 }
+
+var loadTasks = function() {
+    // get tasks from local storage
+    var taskStr = localStorage.getItem("tasks");
+    
+    // check if taskStr is null, and break function if so
+    if (taskStr === null) {
+        //tasks = Array();
+        return false;
+    }
+
+    // convert tasks from the string format back into an array of objects
+    tasks = JSON.parse(taskStr);
+
+    // iterate through a task array and create task elements on the page from it
+    for (var i = 0; i < tasks.length; i++) {
+        createTaskEl(tasks[i]);
+        console.log(tasks[i]);
+    }
+
+    notLoadingTasks = true; // we are not loading tasks from localStorage anymore
+}
+
+loadTasks();
 
 formEl.addEventListener("submit", taskFormHandler);
 
